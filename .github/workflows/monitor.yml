@@ -1,0 +1,40 @@
+name: Monitor Aiven Docs
+on:
+  schedule:
+    - cron: '0 9 * * *' # Runs daily at 9:00 AM UTC
+  workflow_dispatch: # Allows you to run it manually to test
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch latest llms.txt
+        run: |
+          curl -s https://aiven.io/docs/llms.txt -o latest_llms.txt
+
+      - name: Compare and notify
+        id: compare
+        run: |
+          if [ -f current_llms.txt ]; then
+            if ! cmp -s current_llms.txt latest_llms.txt; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            cp latest_llms.txt current_llms.txt
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Save changes to history
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          git config user.name "Aiven Monitor"
+          git config user.email "monitor@yourdomain.com"
+          mv latest_llms.txt current_llms.txt
+          git add current_llms.txt
+          git commit -m "Detect changes in Aiven llms.txt"
+          git push
