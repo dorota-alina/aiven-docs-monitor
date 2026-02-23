@@ -29,6 +29,41 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Send slack alert
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"🔔 *Aiven Docs Update:* Changes detected in llms.txt. View live: https://aiven.io/docs/llms.txt\"}" \
+          $SLACK_WEBHOOK
+
+      - name: Send email alert
+        if: steps.compare.outputs.changed == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: 🔔 Aiven Docs Update Detected
+          to: dorota.wojcik@aiven.io
+          from: ${{ secrets.SMTP_USERNAME }}
+          body: |
+            Hello,
+            
+            Changes have been detected in the Aiven documentation llms.txt file.
+            
+            🔍 What changed: The llms.txt file has been updated
+            📅 Detection time: ${{ github.run_id }} - ${{ github.run_number }}
+            🌐 View live document: https://aiven.io/docs/llms.txt
+            📊 Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            This is an automated notification from the Aiven Docs Monitor.
+            
+            Best regards,
+            Aiven Docs Monitor
+
       - name: Save changes to history
         if: steps.compare.outputs.changed == 'true'
         run: |
